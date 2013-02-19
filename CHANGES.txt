@@ -22,7 +22,11 @@ Trunk (unreleased changes)
 
 INCOMPATIBLE CHANGES
 
+PIG-3191: [piggybank] MultiStorage output filenames are not sortable (Danny Antonelli via jcoveney)
+
 IMPROVEMENTS
+
+PIG-3131: Document PluckTuple UDF (rjurney via jcoveney) 
 
 PIG-3098: Add another test for the self join case (jcoveney)
 
