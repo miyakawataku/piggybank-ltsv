@@ -22,7 +22,6 @@ import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.DataByteArray;
-import org.apache.pig.test.MiniCluster;
 import org.apache.pig.test.Util;
 
 import java.util.Iterator;
@@ -54,7 +53,7 @@ public class TestLTSVLoader {
 
     @Test
     public void test_extract_map_without_projection() throws Exception {
-        String inputFileName = "TestLTSVLoader-test_stub.ltsv";
+        String inputFileName = "TestLTSVLoader-test_extract_map_without_projection.ltsv";
         Util.createLocalInputFile(inputFileName, new String[] {
             "id:001\tname:John",
             "id:002\tname:Paul"
@@ -64,18 +63,36 @@ public class TestLTSVLoader {
                 , inputFileName);
         Util.registerMultiLineQuery(pigServer, script);
         Iterator<Tuple> it = pigServer.openIterator("beatle");
-        assertUnaryTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
-        assertUnaryTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
+        assertTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
+        assertTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
+        assertThat(it.hasNext(), is(false));
+    }
+
+
+    @Test
+    public void test_extract_fields_without_projection() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_extract_fields_without_projection.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "id:001\tname:John",
+            "id:002\tname:Paul"
+        });
+        String script = String.format(
+                "beatle = LOAD '%s'"
+                + " USING org.apache.pig.piggybank.storage.LTSVLoader('id:int, name: chararray');"
+                , inputFileName);
+        Util.registerMultiLineQuery(pigServer, script);
+        Iterator<Tuple> it = pigServer.openIterator("beatle");
+        assertTuple(it.next(), 1, "John");
+        assertTuple(it.next(), 2, "Paul");
+        assertThat(it.hasNext(), is(false));
     }
 
 
     /**
-     * Asserts that the actual tuple is an unary tuple,
-     * and the only element is equal to {@code expectedElement}.
+     * Asserts that the actual tuple is a tuple of the given elements,
      */
-    private void assertUnaryTuple(Tuple actual, Object expectedElement) throws Exception {
-        assertThat(actual.size(), is(1));
-        assertThat(actual.get(0), is(expectedElement));
+    private void assertTuple(Tuple actual, Object ... expectedElements) throws Exception {
+        assertThat(actual, is(Util.createTuple(expectedElements)));
     }
 
 
