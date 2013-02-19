@@ -129,6 +129,24 @@ public class TestLTSVLoader {
     }
 
 
+    @Test
+    public void test_malformed_column_is_skipped() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_malformed_column_is_skipped.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "\t\tid:001\terrordata1\tname:John\t\t",
+            "\t\tid:002\terrordata2\tname:Paul\t\t"
+        });
+        String script = String.format(
+                "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
+                , inputFileName);
+        Util.registerMultiLineQuery(pigServer, script);
+        Iterator<Tuple> it = pigServer.openIterator("beatle");
+        assertTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
+        assertTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
+        assertThat(it.hasNext(), is(false));
+    }
+
+
     /**
      * Asserts that the actual tuple is a tuple of the given elements,
      */
