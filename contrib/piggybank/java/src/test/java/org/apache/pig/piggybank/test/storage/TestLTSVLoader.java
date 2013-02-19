@@ -70,8 +70,29 @@ public class TestLTSVLoader {
 
 
     @Test
-    public void test_extract_fields_without_projection() throws Exception {
-        String inputFileName = "TestLTSVLoader-test_extract_fields_without_projection.ltsv";
+    public void test_extract_map_with_projection() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_extract_map_with_projection.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "host:host1.example.org\treq:GET /index.html\tua:Opera/9.80",
+            "host:host1.example.org\treq:GET /favicon.ico\tua:Opera/9.80",
+            "host:pc.example.com\treq:GET /news.html\tua:Mozilla/5.0"
+        });
+        pigServer.registerQuery(String.format("access = LOAD '%s'"
+                    + " USING org.apache.pig.piggybank.storage.LTSVLoader()"
+                    + " AS (m:map[]);"
+                    , inputFileName));
+        pigServer.registerQuery("host_ua = FOREACH access GENERATE m#'host', m#'ua';");
+        Iterator<Tuple> it = pigServer.openIterator("host_ua");
+        assertTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
+        assertTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
+        assertTuple(it.next(), byteArray("pc.example.com"), byteArray("Mozilla/5.0"));
+        assertThat(it.hasNext(), is(false));
+    }
+
+
+    @Test
+    public void test_extract_all_fields() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_extract_all_fields.ltsv";
         Util.createLocalInputFile(inputFileName, new String[] {
             "id:001\tname:John",
             "id:002\tname:Paul"
@@ -89,22 +110,21 @@ public class TestLTSVLoader {
 
 
     @Test
-    public void test_extract_map_with_projection() throws Exception {
-        String inputFileName = "TestLTSVLoader-test_extract_map_with_projection.ltsv";
+    public void test_extract_subset_of_fields() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_extract_subset_of_fields.ltsv";
         Util.createLocalInputFile(inputFileName, new String[] {
             "host:host1.example.org\treq:GET /index.html\tua:Opera/9.80",
             "host:host1.example.org\treq:GET /favicon.ico\tua:Opera/9.80",
             "host:pc.example.com\treq:GET /news.html\tua:Mozilla/5.0"
         });
-        pigServer.registerQuery(String.format("access = LOAD '%s'"
-                    + " USING org.apache.pig.piggybank.storage.LTSVLoader()"
-                    + " AS (m:map[]);"
+        pigServer.registerQuery(String.format("host_ua = LOAD '%s'"
+                    + " USING org.apache.pig.piggybank.storage.LTSVLoader("
+                    + "    'host:chararray, ua:chararray');"
                     , inputFileName));
-        pigServer.registerQuery("host_ua = FOREACH access GENERATE m#'host', m#'ua';");
         Iterator<Tuple> it = pigServer.openIterator("host_ua");
-        assertTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
-        assertTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
-        assertTuple(it.next(), byteArray("pc.example.com"), byteArray("Mozilla/5.0"));
+        assertTuple(it.next(), "host1.example.org", "Opera/9.80");
+        assertTuple(it.next(), "host1.example.org", "Opera/9.80");
+        assertTuple(it.next(), "pc.example.com", "Mozilla/5.0");
         assertThat(it.hasNext(), is(false));
     }
 
