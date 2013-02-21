@@ -275,7 +275,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
         // Reads an map entry from each column.
         int startOfColumn = 0;
-        while (startOfColumn < lineLength) {
+        while (startOfColumn <= lineLength) {
             int endOfColumn = findUntil((byte) '\t', lineBytes, startOfColumn, lineLength);
             readColumn(lineBytes, startOfColumn, endOfColumn);
             startOfColumn = endOfColumn + TAB_LENGTH;

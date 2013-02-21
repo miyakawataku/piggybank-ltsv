@@ -20,9 +20,12 @@ package org.apache.pig.piggybank.test.storage;
 
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
+import org.apache.pig.PigWarning;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.DataByteArray;
+import org.apache.pig.tools.pigstats.PigStatusReporter;
 import org.apache.pig.test.Util;
+import org.apache.hadoop.mapreduce.Counter;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -135,17 +138,26 @@ public class TestLTSVLoader {
     @Test
     public void test_malformed_column_is_skipped() throws Exception {
         String inputFileName = "TestLTSVLoader-test_malformed_column_is_skipped.ltsv";
+
+        // Each line contains 5 malformed columns: "", "", errordataX, "", ""
         Util.createLocalInputFile(inputFileName, new String[] {
             "\t\tid:001\terrordata1\tname:John\t\t",
             "\t\tid:002\terrordata2\tname:Paul\t\t"
         });
+
         pigServer.registerQuery(String.format(
                     "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
                     , inputFileName));
+
+        // The relation "beatle" should contain all the columns except for malformed ones.
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         assertTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
         assertTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
         assertThat(it.hasNext(), is(false));
+
+        // Malformed columns should be warned.
+        Counter warningCounter = PigStatusReporter.getInstance().getCounter(PigWarning.UDF_WARNING_8);
+        assertThat(warningCounter.getValue(), is(5L * 2));
     }
 
 
