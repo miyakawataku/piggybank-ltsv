@@ -40,7 +40,7 @@ import static org.hamcrest.CoreMatchers.is;
 public class TestLTSVLoader {
 
 
-    /** Testing server. */
+    /** Stub server. */
     private final PigServer pigServer;
 
 
@@ -58,10 +58,9 @@ public class TestLTSVLoader {
             "id:001\tname:John",
             "id:002\tname:Paul"
         });
-        String script = String.format(
-                "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
-                , inputFileName);
-        Util.registerMultiLineQuery(pigServer, script);
+        pigServer.registerQuery(String.format(
+                    "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
+                    , inputFileName));
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         assertTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
         assertTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
@@ -97,11 +96,10 @@ public class TestLTSVLoader {
             "id:001\tname:John",
             "id:002\tname:Paul"
         });
-        String script = String.format(
-                "beatle = LOAD '%s'"
-                + " USING org.apache.pig.piggybank.storage.LTSVLoader('id:int, name: chararray');"
-                , inputFileName);
-        Util.registerMultiLineQuery(pigServer, script);
+        pigServer.registerQuery(String.format(
+                    "beatle = LOAD '%s'"
+                    + " USING org.apache.pig.piggybank.storage.LTSVLoader('id:int, name: chararray');"
+                    , inputFileName));
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         assertTuple(it.next(), 1, "John");
         assertTuple(it.next(), 2, "Paul");
@@ -136,10 +134,9 @@ public class TestLTSVLoader {
             "\t\tid:001\terrordata1\tname:John\t\t",
             "\t\tid:002\terrordata2\tname:Paul\t\t"
         });
-        String script = String.format(
-                "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
-                , inputFileName);
-        Util.registerMultiLineQuery(pigServer, script);
+        pigServer.registerQuery(String.format(
+                    "beatle = LOAD '%s' USING org.apache.pig.piggybank.storage.LTSVLoader();"
+                    , inputFileName));
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         assertTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
         assertTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
