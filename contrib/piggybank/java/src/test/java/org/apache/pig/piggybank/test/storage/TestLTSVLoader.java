@@ -18,7 +18,10 @@
 
 package org.apache.pig.piggybank.test.storage;
 
+import org.apache.pig.piggybank.storage.LTSVLoader;
+
 import org.apache.pig.ExecType;
+import org.apache.pig.LoadPushDown;
 import org.apache.pig.PigServer;
 import org.apache.pig.PigWarning;
 import org.apache.pig.data.Tuple;
@@ -158,6 +161,17 @@ public class TestLTSVLoader {
         // Malformed columns should be warned.
         Counter warningCounter = PigStatusReporter.getInstance().getCounter(PigWarning.UDF_WARNING_8);
         assertThat(warningCounter.getValue(), is(5L * 2));
+    }
+
+
+    /** No projection is performed if projection information is not given. */
+    @Test
+    public void no_projection_information_for_pushProjection() throws Exception {
+        LTSVLoader loader = new LTSVLoader();
+        loader.setUDFContextSignature("TestLTSVLoader.no_projection_information_for_pushProjection");
+        LoadPushDown.RequiredFieldList fields = new LoadPushDown.RequiredFieldList(null);
+        LoadPushDown.RequiredFieldResponse actualResponse = loader.pushProjection(fields);
+        assertThat(actualResponse.getRequiredFieldResponse(), is(false));
     }
 
 
