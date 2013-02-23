@@ -29,6 +29,7 @@ import org.apache.pig.PigWarning;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.DataByteArray;
+import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.util.UDFContext;
 import org.apache.pig.tools.pigstats.PigStatusReporter;
 import org.apache.pig.test.Util;
@@ -48,6 +49,7 @@ import java.util.Properties;
 
 import org.junit.Test;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import static org.hamcrest.CoreMatchers.is;
 
@@ -255,7 +257,7 @@ public class TestLTSVLoader {
 
 
     /**
-     * No projection is performed if the only map field does not contain subfields.
+     * No projection is performed if the only field does not contain subfields.
      */
     @Test
     public void test_no_projection_performed_when_subfields_not_given() throws Exception {
@@ -264,6 +266,22 @@ public class TestLTSVLoader {
         RequiredFieldResponse response = this.loader.pushProjection(withoutSubfields);
         checkResponse(response, false);
         checkLabelsToOutput(null);
+    }
+
+
+    /**
+     * FrontendException is thrown when the index of the only field is not zero.
+     */
+    @Test
+    public void test_error_thrown_when_index_of_field_is_nonzero() {
+        RequiredField nonZeroIndexField = new RequiredField("map", 1, null, DataType.MAP);
+        RequiredFieldList fieldListWithNonZeroIndex = fieldList(nonZeroIndexField);
+        try {
+            this.loader.pushProjection(fieldListWithNonZeroIndex);
+            fail();
+        } catch (FrontendException exception) {
+            assertThat(exception.getErrorCode(), is(2998));
+        }
     }
 
 
