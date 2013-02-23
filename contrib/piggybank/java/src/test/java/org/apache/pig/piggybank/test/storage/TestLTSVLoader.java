@@ -72,7 +72,9 @@ public class TestLTSVLoader {
     // Tests jobs, from input to output
 
 
-    /** Extracts a map from each line, and use all of the columns. */
+    /**
+     * Extracts a map from each line, and use all of the columns.
+     */
     @Test
     public void test_extract_map_without_projection() throws Exception {
         String inputFileName = "TestLTSVLoader-test_extract_map_without_projection.ltsv";
@@ -90,7 +92,9 @@ public class TestLTSVLoader {
     }
 
 
-    /** Extracts a map from each line, and use a subset of the columns. */
+    /**
+     * Extracts a map from each line, and use a subset of the columns.
+     */
     @Test
     public void test_extract_map_with_projection() throws Exception {
         String inputFileName = "TestLTSVLoader-test_extract_map_with_projection.ltsv";
@@ -112,7 +116,9 @@ public class TestLTSVLoader {
     }
 
 
-    /** Extracts fields from all the columns in a line. */
+    /**
+     * Extracts fields from all the columns in a line.
+     */
     @Test
     public void test_extract_all_fields() throws Exception {
         String inputFileName = "TestLTSVLoader-test_extract_all_fields.ltsv";
@@ -131,7 +137,9 @@ public class TestLTSVLoader {
     }
 
 
-    /** Extracts fields from a subset of the columns in a line. */
+    /**
+     * Extracts fields from a subset of the columns in a line.
+     */
     @Test
     public void test_extract_subset_of_fields() throws Exception {
         String inputFileName = "TestLTSVLoader-test_extract_subset_of_fields.ltsv";
@@ -152,7 +160,9 @@ public class TestLTSVLoader {
     }
 
 
-    /** Malformed columns are not contained in the output. */
+    /**
+     * Malformed columns are not contained in the output.
+     */
     @Test
     public void test_malformed_column_is_skipped() throws Exception {
         String inputFileName = "TestLTSVLoader-test_malformed_column_is_skipped.ltsv";
