@@ -88,7 +88,7 @@ public class TestLTSVLoader {
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         checkTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
         checkTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
-        assertThat(it.hasNext(), is(false));
+        checkNoMoreTuple(it);
     }
 
 
@@ -112,7 +112,7 @@ public class TestLTSVLoader {
         checkTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
         checkTuple(it.next(), byteArray("host1.example.org"), byteArray("Opera/9.80"));
         checkTuple(it.next(), byteArray("pc.example.com"), byteArray("Mozilla/5.0"));
-        assertThat(it.hasNext(), is(false));
+        checkNoMoreTuple(it);
     }
 
 
@@ -133,7 +133,7 @@ public class TestLTSVLoader {
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         checkTuple(it.next(), 1, "John");
         checkTuple(it.next(), 2, "Paul");
-        assertThat(it.hasNext(), is(false));
+        checkNoMoreTuple(it);
     }
 
 
@@ -156,7 +156,7 @@ public class TestLTSVLoader {
         checkTuple(it.next(), "host1.example.org", "Opera/9.80");
         checkTuple(it.next(), "host1.example.org", "Opera/9.80");
         checkTuple(it.next(), "pc.example.com", "Mozilla/5.0");
-        assertThat(it.hasNext(), is(false));
+        checkNoMoreTuple(it);
     }
 
 
@@ -181,7 +181,7 @@ public class TestLTSVLoader {
         Iterator<Tuple> it = pigServer.openIterator("beatle");
         checkTuple(it.next(), map("id", byteArray("001"), "name", byteArray("John")));
         checkTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
-        assertThat(it.hasNext(), is(false));
+        checkNoMoreTuple(it);
 
         // Malformed columns should be warned.
         Counter warningCounter = PigStatusReporter.getInstance().getCounter(PigWarning.UDF_WARNING_8);
@@ -190,10 +190,18 @@ public class TestLTSVLoader {
 
 
     /**
-     * Asserts that the actual tuple is a tuple of the given elements,
+     * Checks that the actual tuple is a tuple of the given elements,
      */
     private void checkTuple(Tuple actual, Object ... expectedElements) throws Exception {
         assertThat(actual, is(Util.createTuple(expectedElements)));
+    }
+
+
+    /**
+     * Checks that the iterator has no more tuple.
+     */
+    private void checkNoMoreTuple(Iterator<Tuple> iterator) {
+        assertThat(iterator.hasNext(), is(false));
     }
 
 
