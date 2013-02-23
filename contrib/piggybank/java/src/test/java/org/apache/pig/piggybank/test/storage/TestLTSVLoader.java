@@ -255,10 +255,23 @@ public class TestLTSVLoader {
 
 
     /**
+     * No projection is performed if the only map field does not contain subfields.
+     */
+    @Test
+    public void test_no_projection_performed_when_subfields_not_given() throws Exception {
+        RequiredField mapField = new RequiredField("map", 0, null, DataType.MAP);
+        RequiredFieldList withoutSubfields = fieldList(mapField);
+        RequiredFieldResponse response = this.loader.pushProjection(withoutSubfields);
+        checkResponse(response, false);
+        checkLabelsToOutput(null);
+    }
+
+
+    /**
      * No projection is performed if projection information is not given.
      */
     @Test
-    public void test_no_projection_information_for_pushProjection() throws Exception {
+    public void test_no_projection_performed_when_fields_not_given() throws Exception {
         RequiredFieldList emptyFieldList = new RequiredFieldList(null);
         RequiredFieldResponse response = this.loader.pushProjection(emptyFieldList);
         checkResponse(response, false);
