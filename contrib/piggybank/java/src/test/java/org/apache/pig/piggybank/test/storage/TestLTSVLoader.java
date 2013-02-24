@@ -286,6 +286,35 @@ public class TestLTSVLoader {
 
 
     /**
+     * No projection is performed if no field is specified.
+     */
+    @Test
+    public void test_no_projection_performed_if_no_field_is_specified() throws Exception {
+        RequiredFieldList emptyFieldList = fieldList();
+        RequiredFieldResponse response = this.loader.pushProjection(emptyFieldList);
+        checkResponse(response, false);
+        checkLabelsToOutput(null);
+    }
+
+
+    /**
+     * FrontendException is thrown when multiple fields are specified.
+     */
+    @Test
+    public void test_no_error_thrown_when_multiple_fields_specified() {
+        RequiredField field0 = new RequiredField("map0", 0, null, DataType.MAP);
+        RequiredField field1 = new RequiredField("map1", 1, null, DataType.MAP);
+        RequiredFieldList multipleElementsFieldList = fieldList(field0, field1);
+        try {
+            this.loader.pushProjection(multipleElementsFieldList);
+            fail();
+        } catch (FrontendException exception) {
+            assertThat(exception.getErrorCode(), is(2998));
+        }
+    }
+
+
+    /**
      * No projection is performed if projection information is not given.
      */
     @Test
