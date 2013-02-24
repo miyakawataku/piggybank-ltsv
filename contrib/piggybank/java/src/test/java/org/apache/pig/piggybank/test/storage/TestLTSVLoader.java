@@ -77,7 +77,7 @@ public class TestLTSVLoader {
     }
 
 
-    // Tests jobs, from input to output {{{1
+    // Tests for jobs, from input to output {{{1
 
 
     /**
@@ -234,7 +234,7 @@ public class TestLTSVLoader {
     }
 
 
-    // Tests for LTSVLoader.pushProjection {{{1
+    // Tests LTSVLoader.pushProjection() {{{1
 
 
     /** Signature of the invocation of the loader in the test case. */
@@ -327,6 +327,21 @@ public class TestLTSVLoader {
     public void test_no_projection_performed_when_fields_not_given() throws Exception {
         RequiredFieldList emptyFieldList = new RequiredFieldList(null);
         RequiredFieldResponse response = this.loader.pushProjection(emptyFieldList);
+        checkResponse(response, false);
+        checkLabelsToOutput(null);
+    }
+
+
+    /**
+     * No projection is performed if the loader is constructed with fields.
+     */
+    @Test
+    public void test_no_projection_performed_when_fields_are_specified_for_constructor() throws Exception {
+        LTSVLoader fieldsLoader = new LTSVLoader("host:chararray, ua:chararray");
+        fieldsLoader.setUDFContextSignature(this.signature);
+        RequiredField hostField = new RequiredField("host", 0, null, DataType.CHARARRAY);
+        RequiredFieldList fieldList = fieldList(hostField);
+        RequiredFieldResponse response = fieldsLoader.pushProjection(fieldList);
         checkResponse(response, false);
         checkLabelsToOutput(null);
     }
