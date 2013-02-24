@@ -26,6 +26,8 @@ import org.apache.pig.LoadPushDown.RequiredFieldList;
 import org.apache.pig.LoadPushDown.RequiredFieldResponse;
 import org.apache.pig.PigServer;
 import org.apache.pig.PigWarning;
+import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigTextInputFormat;
+import org.apache.pig.bzip2r.Bzip2TextInputFormat;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.DataByteArray;
@@ -34,8 +36,12 @@ import org.apache.pig.impl.util.UDFContext;
 import org.apache.pig.tools.pigstats.PigStatusReporter;
 import org.apache.pig.test.Util;
 
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.InputFormat;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +58,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.instanceOf;
 
 /**
  * @see LTSVLoader Test target
@@ -70,8 +77,7 @@ public class TestLTSVLoader {
     }
 
 
-
-    // Tests jobs, from input to output
+    // Tests jobs, from input to output {{{1
 
 
     /**
@@ -228,7 +234,7 @@ public class TestLTSVLoader {
     }
 
 
-    // Tests LTSVLoader.pushProjection
+    // Tests for LTSVLoader.pushProjection {{{1
 
 
     /** Signature of the invocation of the loader in the test case. */
@@ -400,6 +406,110 @@ public class TestLTSVLoader {
     }
 
 
+    // Tests LTSVLoader.getInputFormat() {{{1
+
+
+    /**
+     * PigTextInputFormat is used for *.txt.
+     */
+    @Test
+    public void test_regular_input_format_is_used_for_txt_file() throws Exception {
+        Job job = new Job();
+
+        // Touches XXXX.txt, and sets the file as the input location.
+        String textFileName = "TestLTSVLoader-test_regular_input_format_is_used_for_text_file.txt";
+        Util.createLocalInputFile(textFileName, new String[0]);
+        this.loader.setLocation(textFileName, job);
+
+        InputFormat inputFormat = this.loader.getInputFormat();
+        assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
+    }
+
+
+    /**
+     * PigTextInputFormat is used for a directory.
+     */
+    @Test
+    public void test_regular_input_format_is_used_for_directory() throws Exception {
+        Job job = new Job();
+
+        // Mkdir XXXX, and sets the directory as the input location.
+        String dirName = "TestLTSVLoader-test_regular_input_format_is_used_for_directory";
+        makeLocalDirectory(dirName);
+        this.loader.setLocation(dirName, job);
+
+        InputFormat inputFormat = this.loader.getInputFormat();
+        assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
+    }
+
+
+    /**
+     * PigTextInputFormat is used for *.gz.
+     */
+    @Test
+    public void test_regular_input_format_is_used_for_gz_file() throws Exception {
+        Job job = new Job();
+
+        // Touches XXXX.gz, and sets the file as the input location.
+        String gzFileName = "TestLTSVLoader-test_regular_input_format_is_used_for_gzip_file.gz";
+        Util.createLocalInputFile(gzFileName, new String[0]);
+        this.loader.setLocation(gzFileName, job);
+
+        InputFormat inputFormat = this.loader.getInputFormat();
+        assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
+    }
+
+
+    /**
+     * Bzip2TextInputFormat is used for *.bz.
+     */
+    @Test
+    public void test_bzip2_input_format_is_used_for_bz_file() throws Exception {
+        Job job = new Job();
+
+        // Touches XXXX.bz, and sets the file as the input location.
+        String bzFileName = "TestLTSVLoader-test_bzip2_input_format_is_used_for_bz_file.bz";
+        Util.createLocalInputFile(bzFileName, new String[0]);
+        this.loader.setLocation(bzFileName, job);
+
+        InputFormat inputFormat = this.loader.getInputFormat();
+        assertThat(inputFormat, instanceOf(Bzip2TextInputFormat.class));
+    }
+
+
+    /**
+     * Bzip2TextInputFormat is used for *.bz2.
+     */
+    @Test
+    public void test_bzip2_input_format_is_used_for_bz2_file() throws Exception {
+        Job job = new Job();
+
+        // Touches XXXX.bz2, and sets the file as the input location.
+        String bz2FileName = "TestLTSVLoader-test_bzip2_input_format_is_used_for_bz2_file.bz2";
+        Util.createLocalInputFile(bz2FileName, new String[0]);
+        this.loader.setLocation(bz2FileName, job);
+
+        InputFormat inputFormat = this.loader.getInputFormat();
+        assertThat(inputFormat, instanceOf(Bzip2TextInputFormat.class));
+    }
+
+
+    /**
+     * Creates a local directory.
+     */
+    private void makeLocalDirectory(String pathname) throws IOException {
+        File dir = new File(pathname);
+        dir.deleteOnExit();
+        boolean created = dir.mkdir();
+        if (! created) {
+            throw new IOException("Cannot create a directory: " + pathname);
+        }
+    }
+
+
+    // }}}
+
+
 }
 
-// vim: et sw=4 sts=4
+// vim: et sw=4 sts=4 fdm=marker
