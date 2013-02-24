@@ -333,10 +333,10 @@ public class TestLTSVLoader {
 
 
     /**
-     * No projection is performed if the loader is constructed with fields.
+     * No projection is performed if the loader is constructed with a schema.
      */
     @Test
-    public void test_no_projection_performed_when_fields_are_specified_for_constructor() throws Exception {
+    public void test_no_projection_performed_when_schema_are_specified_for_constructor() throws Exception {
         LTSVLoader fieldsLoader = new LTSVLoader("host:chararray, ua:chararray");
         fieldsLoader.setUDFContextSignature(this.signature);
         RequiredField hostField = new RequiredField("host", 0, null, DataType.CHARARRAY);

@@ -128,7 +128,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  *
  * <pre>
  * (host1.example.org,Opera/9.80,2)
- * (pc.example.com,Firefox/5.0, 1)
+ * (pc.example.com,Firefox/5.0,1)
  * </pre>
  *
  * <h3>Extract a map from each line</h3>
@@ -314,6 +314,8 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
     /**
      * Constructs a tuple from columns and emits it.
+     *
+     * This interface is used to switch the output type between a map and fields.
      */
     private interface TupleEmitter {
 
