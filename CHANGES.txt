@@ -24,7 +24,21 @@ INCOMPATIBLE CHANGES
 
 PIG-3191: [piggybank] MultiStorage output filenames are not sortable (Danny Antonelli via jcoveney)
 
+PIG-3174:  Remove rpm and deb artifacts from build.xml (gates)
+
 IMPROVEMENTS
+
+PIG-3142: [piggybank] Fixed-width load and store functions for the Piggybank (jpacker via cheolsoo)
+
+PIG-3162: PigTest.assertOutput doesn't allow non-default delimiter (dreambird via cheolsoo)
+
+PIG-3002: Pig client should handle CountersExceededException (jarcec via billgraham)
+
+PIG-3189: Remove ivy/pig.pom and improve build mvn targets (billgraham)
+
+PIG-3192: Better call to action to download Pig in docs (rjurney via jcoveney)
+
+PIG-3167: Job stats are printed incorrectly for map-only jobs (Mark Wagner via jcoveney)
 
 PIG-3131: Document PluckTuple UDF (rjurney via jcoveney) 
 
@@ -115,6 +129,16 @@ PIG-3013: BinInterSedes improve chararray sort performance (rohini)
 
 BUG FIXES
 
+PIG-3150: e2e Scripting_5 fails in trunk (dreambird via cheolsoo)
+
+PIG-3153: TestScriptUDF.testJavascriptExampleScript fails in trunk (cheolsoo)
+
+PIG-3145: Parameters in core-site.xml and mapred-site.xml are not correctly substituted (cheolsoo)
+
+PIG-3135: HExecutionEngine should look for resources in user passed Properties (prkommireddi via cheolsoo)
+
+PIG-3200: MiniCluster should delete hadoop-site.xml on shutDown (prkommireddi via cheolsoo)
+
 PIG-3158: Errors in the document "Control Structures" (miyakawataku via cheolsoo)
 
 PIG-3161: Update reserved keywords in Pig docs (russell.jurney via cheolsoo)
@@ -183,7 +207,26 @@ PIG-2885: TestJobSumission and TestHBaseStorage don't work with HBase 0.94 and Z
 
 PIG-2928: Fix e2e test failures in trunk: FilterBoolean_23/24 (cheolsoo via dvryaboy)
 
-Release 0.11.0 (unreleased)
+Release 0.11.1 (unreleased)
+
+INCOMPATIBLE CHANGES
+
+IMPROVEMENTS
+
+PIG-3216: Groovy UDFs documentation has minor typos (herberts via rohini)
+
+PIG-3202: CUBE operator not documented in user docs (prasanth_j via billgraham)
+
+OPTIMIZATIONS
+
+BUG FIXES
+
+PIGG-3212: Race Conditions in POSort and (Internal)SortedBag during Proactive Spill (kadeng via dvryaboy)
+
+PIG-3206: HBaseStorage does not work with Oozie pig action and secure HBase (rohini)
+
+
+Release 0.11.0
 
 INCOMPATIBLE CHANGES
 
@@ -708,7 +751,7 @@ PIG-2355: ant clean does not clean e2e test build artifacts (daijy)
 
 PIG-2352: e2e test harness' use of environment variables causes unintended effects between tests (gates)
 
-Release 0.10.1 - Unreleased
+Release 0.10.1
 
 BUG FIXES
 
