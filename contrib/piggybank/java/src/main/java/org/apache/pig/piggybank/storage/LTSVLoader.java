@@ -637,12 +637,10 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private Text readLine() throws IOException {
         try {
-            boolean hasLine = this.reader.nextKeyValue();
-            if (! hasLine) {
+            if (! this.reader.nextKeyValue()) {
                 return null;
             }
 
-            assert hasLine;
             return (Text) this.reader.getCurrentValue();
         } catch (InterruptedException exception) {
             throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE,
