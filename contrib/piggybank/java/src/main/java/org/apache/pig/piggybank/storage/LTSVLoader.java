@@ -154,7 +154,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  *
  * <pre>
  * -- Parses the access log and projects the user agent field.
- * access = LOAD 'access.log' USING org.apache.pig.piggybank.storage.LTSVLoader() AS (m:map[]);
+ * access = LOAD 'access.log' USING org.apache.pig.piggybank.storage.LTSVLoader() AS (m);
  * user_agent = FOREACH access GENERATE m#'ua' AS ua;
  * -- Prints out the user agent for each access.
  * DUMP user_agent;
@@ -219,6 +219,69 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     private final TupleEmitter tupleEmitter;
 
 
+    /** Length of "\t" in UTF-8. */
+    private static int TAB_LENGTH = 1;
+
+
+    /** Length of ":" in UTF-8. */
+    private static int COLON_LENGTH = 1;
+
+
+    /** Factory of tuples. */
+    private final TupleFactory tupleFactory = TupleFactory.getInstance();
+
+
+    /** Schema of the output of the loader, which is (:map[]). */
+    private static final ResourceSchema MAP_SCHEMA
+        = new ResourceSchema(new Schema(new Schema.FieldSchema(null, DataType.MAP)));
+
+
+    /**
+     * An error code of an input error.
+     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
+     */
+    private static final int INPUT_ERROR_CODE = 6018;
+
+
+    /**
+     * An error message of an input error.
+     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
+     */
+    private static final String INPUT_ERROR_MESSAGE = "Error while reading input";
+
+
+    /** Underlying record reader of a text file. */
+    @SuppressWarnings("rawtypes")
+    private RecordReader reader = null;
+
+
+    /** Sequence number of the next log message, which starts from 0. */
+    private int warnLogSeqNum = 0;
+
+
+    /** Max count of warning logs which will be output to the task log. */
+    private static final int MAX_WARN_LOG_COUNT = 100;
+
+
+    /** Key of a property which contains Set[String] of labels to output. */
+    private static final String LABELS_TO_OUTPUT = "LABELS_TO_OUTPUT";
+
+
+    /**
+     * An error code of an internal error.
+     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
+     */
+    private static final int INTERNAL_ERROR_CODE = 2998;
+
+
+    /** Location of input files. */
+    private String loadLocation;
+
+
+    /** Signature of the UDF invocation, used to get UDFContext. */
+    private String signature;
+
+
     /**
      * Constructs a loader which extracts a tuple including a single map
      * for each column of an LTSV line.
@@ -243,10 +306,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
 
-    /** Length of "\t" in UTF-8. */
-    private static int TAB_LENGTH = 1;
-
-
     /**
      * Reads an LTSV line and returns a tuple,
      * or returns {@code null} if the loader reaches the end of the block.
@@ -262,12 +321,9 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public Tuple getNext() throws IOException {
         Text line = readLine();
 
-        boolean hasLine = (line != null);
-        if (! hasLine) {
+        if (line == null) {
             return null;
         }
-
-        assert hasLine;
 
         // Current line: lineBytes[0, lineLength)
         byte[] lineBytes = line.getBytes();
@@ -285,10 +341,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
 
-    /** Length of ":" in UTF-8. */
-    private static int COLON_LENGTH = 1;
-
-
     /**
      * Reads a column to the tuple emitter.
      */
@@ -299,8 +351,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             warnMalformedColumn(Text.decode(bytes, start, end - start));
             return;
         }
-
-        assert isLabeled;
 
         // Label: bytes[start, colon)
         // Colon: bytes[colon, colon + 1)
@@ -364,21 +414,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
 
-    /** Factory of tuples. */
-    private final TupleFactory tupleFactory = TupleFactory.getInstance();
-
-
-    /** Schema of the output of the loader, which is (:map[]). */
-    private static final ResourceSchema MAP_SCHEMA;
-
-
-    static {
-        Schema.FieldSchema fieldSchema = new Schema.FieldSchema(null, DataType.MAP);
-        Schema schema = new Schema(fieldSchema);
-        MAP_SCHEMA = new ResourceSchema(schema);
-    }
-
-
     /**
      * Reads columns and emits a tuple with a single map field (:map[]).
      */
@@ -386,7 +421,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
 
         /** Contents of the single map field. */
-        private Map<Object, Object> map = new HashMap<Object, Object>();
+        private Map<String, Object> map = new HashMap<String, Object>();
 
 
         @Override
@@ -402,7 +437,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         @Override
         public Tuple emitTuple() {
             Tuple tuple = tupleFactory.newTuple(map);
-            this.map = new HashMap<Object, Object>();
+            this.map = new HashMap<String, Object>();
             return tuple;
         }
 
@@ -436,7 +471,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
                 @SuppressWarnings("unchecked")
                 Set<String> labels = (Set<String>) getProperties().get(LABELS_TO_OUTPUT);
                 this.labelsToOutput = labels;
-                LOG.info("Labels to output: " + this.labelsToOutput);
+                LOG.debug("Labels to output: " + this.labelsToOutput);
                 this.isProjectionInitialized = true;
             }
             return this.labelsToOutput;
@@ -453,50 +488,38 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         public RequiredFieldResponse
         pushProjection(RequiredFieldList requiredFieldList) throws FrontendException {
             List<RequiredField> fields = requiredFieldList.getFields();
-            boolean anyRequirement = (fields != null);
-            if (! anyRequirement) {
-                LOG.info("All the fields are required.");
+            if (fields == null || fields.isEmpty()) {
+                LOG.debug("No fields specified as required.");
                 return new RequiredFieldResponse(false);
             }
 
-            assert anyRequirement;
-            boolean onlyOneField = (fields.size() == 1);
-            if (! onlyOneField) {
-                if (fields.isEmpty()) {
-                    LOG.info("No fields specified as required.");
-                    return new RequiredFieldResponse(false);
-                }
+            if (fields.size() != 1) {
                 String message = String.format(
                         "The loader expects at most one field but %d fields are specified."
                         , fields.size());
                 throw new FrontendException(message, INTERNAL_ERROR_CODE, PigException.BUG);
             }
 
-            assert onlyOneField;
             RequiredField field = fields.get(0);
-            boolean onlyFirstField = (field.getIndex() == 0);
-            if (! onlyFirstField) {
+            if (field.getIndex() != 0) {
                 String message = String.format(
                         "The loader produces only 1ary tuples, but the index %d is specified."
                         , field.getIndex());
                 throw new FrontendException(message, INTERNAL_ERROR_CODE, PigException.BUG);
             }
 
-            assert onlyFirstField;
             List<RequiredField> mapKeys = field.getSubFields();
-            boolean onlyMapField = (mapKeys != null);
-            if (! onlyMapField) {
-                LOG.info("All the labels are required.");
+            if (mapKeys == null) {
+                LOG.debug("All the labels are required.");
                 return new RequiredFieldResponse(false);
             }
 
-            assert onlyMapField;
             Set<String> labels = new HashSet<String>();
             for (RequiredField mapKey : mapKeys) {
                 labels.add(mapKey.getAlias());
             }
             getProperties().put(LABELS_TO_OUTPUT, labels);
-            LOG.info("Labels to output: " + labels);
+            LOG.debug("Labels to output: " + labels);
             return new RequiredFieldResponse(true);
         }
 
@@ -595,14 +618,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
 
-    /** Sequence number of the next log message, which starts from 0. */
-    private int warnLogSeqNum = 0;
-
-
-    /** Max count of warning logs which will be output to the task log. */
-    private static final int MAX_WARN_LOG_COUNT = 100;
-
-
     /** Outputs a warning for a malformed column. */
     private void warnMalformedColumn(String column) {
         String message = String.format("MalformedColumn: Column \"%s\" does not contain \":\".", column);
@@ -614,25 +629,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             ++ this.warnLogSeqNum;
         }
     }
-
-
-    /**
-     * An error code of an input error.
-     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
-     */
-    private static final int INPUT_ERROR_CODE = 6018;
-
-
-    /**
-     * An error message of an input error.
-     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
-     */
-    private static final String INPUT_ERROR_MESSAGE = "Error while reading input";
-
-
-    /** Underlying record reader of a text file. */
-    @SuppressWarnings("rawtypes")
-    private RecordReader reader = null;    
 
 
     /**
@@ -649,7 +645,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             assert hasLine;
             return (Text) this.reader.getCurrentValue();
         } catch (InterruptedException exception) {
-            throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE, 
+            throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE,
                     PigException.REMOTE_ENVIRONMENT, exception);
         }
     }
@@ -670,17 +666,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     prepareToRead(@SuppressWarnings("rawtypes") RecordReader reader, PigSplit split) {
         this.reader = reader;
     }
-
-
-    /** Key of a property which contains Set[String] of labels to output. */
-    private static final String LABELS_TO_OUTPUT = "LABELS_TO_OUTPUT";
-
-
-    /**
-     * An error code of an internal error.
-     * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
-     */
-    private static final int INTERNAL_ERROR_CODE = 2998;
 
 
     /**
@@ -717,10 +702,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
 
-    /** Location of input files. */
-    private String loadLocation;
-
-
     /**
      * Configures the underlying input format
      * to read lines from {@code location}.
@@ -737,7 +718,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     @Override
     public void setLocation(String location, Job job) throws IOException {
         this.loadLocation = location;
-        FileInputFormat.setInputPaths(job, location);        
+        FileInputFormat.setInputPaths(job, location);
     }
 
 
@@ -751,17 +732,13 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public InputFormat getInputFormat() {
         if (loadLocation.endsWith(".bz2") || loadLocation.endsWith(".bz")) {
             // Bzip2TextInputFormat can split bzipped files.
-            LOG.info("Uses Bzip2TextInputFormat");
+            LOG.debug("Uses Bzip2TextInputFormat");
             return new Bzip2TextInputFormat();
         } else {
-            LOG.info("Uses PigTextInputFormat");
+            LOG.debug("Uses PigTextInputFormat");
             return new PigTextInputFormat();
         }
     }
-
-
-    /** Signature of the UDF invocation, used to get UDFContext. */
-    private String signature;
 
 
     /**

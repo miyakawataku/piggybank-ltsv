@@ -71,7 +71,7 @@ public class TestLTSVLoader {
 
 
     public TestLTSVLoader() throws Exception {
-        this.pigServer = new PigServer(ExecType.LOCAL, new Properties());
+        this.pigServer = new PigServer(ExecType.LOCAL);
         this.pigServer.getPigContext().getProperties().setProperty("mapred.map.max.attempts", "1");
         this.pigServer.getPigContext().getProperties().setProperty("mapred.reduce.max.attempts", "1");
     }
@@ -168,6 +168,27 @@ public class TestLTSVLoader {
     }
 
 
+    @Test
+    public void test_extract_subset_of_fields_and_do_projection() throws Exception {
+        String inputFileName = "TestLTSVLoader-test_extract_subset_of_fields_and_do_projection.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "host:host1.example.org\treq:GET /index.html\tua:Opera/9.80",
+            "host:host1.example.org\treq:GET /favicon.ico\tua:Opera/9.80",
+            "host:pc.example.com\treq:GET /news.html\tua:Mozilla/5.0"
+        });
+        pigServer.registerQuery(String.format("host_ua = LOAD '%s'"
+                    + " USING org.apache.pig.piggybank.storage.LTSVLoader("
+                    + "    'host:chararray, ua:chararray');"
+                    , inputFileName));
+        pigServer.registerQuery("ua = FOREACH host_ua GENERATE ua;");
+        Iterator<Tuple> it = pigServer.openIterator("ua");
+        checkTuple(it.next(), "Opera/9.80");
+        checkTuple(it.next(), "Opera/9.80");
+        checkTuple(it.next(), "Mozilla/5.0");
+        checkNoMoreTuple(it);
+    }
+
+
     /**
      * Malformed columns are not contained in the output.
      */
@@ -216,11 +237,11 @@ public class TestLTSVLoader {
     /**
      * Returns a map of {args[0]: args[1], args[2]: args[3], ...}.
      */
-    private Map<Object, Object> map(Object ... args) {
-        Map<Object, Object> map = new HashMap<Object, Object>();
+    private Map<String, Object> map(Object ... args) {
+        Map<String, Object> map = new HashMap<String, Object>();
         for (int keyIndex = 0; keyIndex < args.length; keyIndex += 2) {
             int valueIndex = keyIndex + 1;
-            map.put(args[keyIndex], args[valueIndex]);
+            map.put((String) args[keyIndex], args[valueIndex]);
         }
         return map;
     }
