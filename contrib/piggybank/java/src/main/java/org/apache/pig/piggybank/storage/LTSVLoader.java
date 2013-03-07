@@ -548,6 +548,9 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         /** Mapping from labels to indexes in a tuple. */
         private final Map<String, Integer> labelToIndex = new HashMap<String, Integer>();
 
+        /** Set of labels which have occurred and been skipped. */
+        private final Set<String> skippedLabels = new HashSet<String>();
+
         /**
          * Constructs an emitter with the schema.
          */
@@ -564,6 +567,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
         throws IOException {
             if (! this.labelToIndex.containsKey(label)) {
+                logSkippedLabelAtFirstOccurrence(label);
                 return;
             }
 
@@ -574,6 +578,16 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             System.arraycopy(bytes, startOfValue, valueBytes, 0, valueLength);
             Object value = CastUtils.convertToType(this.loadCaster, valueBytes, fieldSchema, fieldSchema.getType());
             this.tuple.set(index, value);
+        }
+
+        /**
+         * Outputs the label of a skipped column to the task log at the first occurrence.
+         */
+        private void logSkippedLabelAtFirstOccurrence(String label) {
+            if (LOG.isDebugEnabled() && ! this.skippedLabels.contains(label)) {
+                this.skippedLabels.add(label);
+                LOG.debug("Skipped label: " + label);
+            }
         }
 
         @Override
