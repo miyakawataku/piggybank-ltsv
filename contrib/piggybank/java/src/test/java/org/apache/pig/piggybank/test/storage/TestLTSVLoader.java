@@ -65,10 +65,8 @@ import static org.hamcrest.CoreMatchers.instanceOf;
  */
 public class TestLTSVLoader {
 
-
     /** Stub server. */
     private final PigServer pigServer;
-
 
     public TestLTSVLoader() throws Exception {
         this.pigServer = new PigServer(ExecType.LOCAL);
@@ -76,9 +74,7 @@ public class TestLTSVLoader {
         this.pigServer.getPigContext().getProperties().setProperty("mapred.reduce.max.attempts", "1");
     }
 
-
     // Tests for jobs, from input to output {{{1
-
 
     /**
      * Extracts a map from each line, and use all of the columns.
@@ -98,7 +94,6 @@ public class TestLTSVLoader {
         checkTuple(it.next(), map("id", byteArray("002"), "name", byteArray("Paul")));
         checkNoMoreTuple(it);
     }
-
 
     /**
      * Extracts a map from each line, and use a subset of the columns.
@@ -123,7 +118,6 @@ public class TestLTSVLoader {
         checkNoMoreTuple(it);
     }
 
-
     /**
      * Extracts fields from all the columns in a line.
      */
@@ -143,7 +137,6 @@ public class TestLTSVLoader {
         checkTuple(it.next(), 2, "Paul");
         checkNoMoreTuple(it);
     }
-
 
     /**
      * Extracts fields from a subset of the columns in a line.
@@ -167,7 +160,6 @@ public class TestLTSVLoader {
         checkNoMoreTuple(it);
     }
 
-
     @Test
     public void test_extract_subset_of_fields_and_do_projection() throws Exception {
         String inputFileName = "TestLTSVLoader-test_extract_subset_of_fields_and_do_projection.ltsv";
@@ -187,7 +179,6 @@ public class TestLTSVLoader {
         checkTuple(it.next(), "Mozilla/5.0");
         checkNoMoreTuple(it);
     }
-
 
     /**
      * Malformed columns are not contained in the output.
@@ -217,7 +208,6 @@ public class TestLTSVLoader {
         assertThat(warningCounter.getValue(), is(5L * 2));
     }
 
-
     /**
      * Checks that the actual tuple is a tuple of the given elements,
      */
@@ -225,14 +215,12 @@ public class TestLTSVLoader {
         assertThat(actual, is(Util.createTuple(expectedElements)));
     }
 
-
     /**
      * Checks that the iterator has no more tuple.
      */
     private void checkNoMoreTuple(Iterator<Tuple> iterator) {
         assertThat(iterator.hasNext(), is(false));
     }
-
 
     /**
      * Returns a map of {args[0]: args[1], args[2]: args[3], ...}.
@@ -246,7 +234,6 @@ public class TestLTSVLoader {
         return map;
     }
 
-
     /**
      * Encodes the string in UTF-8 to DataByteArray.
      */
@@ -254,22 +241,17 @@ public class TestLTSVLoader {
         return new DataByteArray(string);
     }
 
-
     // Tests LTSVLoader.pushProjection() {{{1
-
 
     /** Signature of the invocation of the loader in the test case. */
     private final String signature = newSignature();
 
-
     /** Loader to test. */
     private final LTSVLoader loader = new LTSVLoader();
-
 
     {
         this.loader.setUDFContextSignature(this.signature);
     }
-
 
     /**
      * Map keys given to pushProjection() are set as labels to be output.
@@ -282,7 +264,6 @@ public class TestLTSVLoader {
         checkLabelsToOutput(newSet("host", "ua", "referer"));
     }
 
-
     /**
      * No projection is performed if the only field does not contain subfields.
      */
@@ -294,7 +275,6 @@ public class TestLTSVLoader {
         checkResponse(response, false);
         checkLabelsToOutput(null);
     }
-
 
     /**
      * FrontendException is thrown when the index of the only field is not zero.
@@ -311,7 +291,6 @@ public class TestLTSVLoader {
         }
     }
 
-
     /**
      * No projection is performed if no field is specified.
      */
@@ -322,7 +301,6 @@ public class TestLTSVLoader {
         checkResponse(response, false);
         checkLabelsToOutput(null);
     }
-
 
     /**
      * FrontendException is thrown when multiple fields are specified.
@@ -340,7 +318,6 @@ public class TestLTSVLoader {
         }
     }
 
-
     /**
      * No projection is performed if projection information is not given.
      */
@@ -351,7 +328,6 @@ public class TestLTSVLoader {
         checkResponse(response, false);
         checkLabelsToOutput(null);
     }
-
 
     /**
      * No projection is performed if the loader is constructed with a schema.
@@ -367,10 +343,8 @@ public class TestLTSVLoader {
         checkLabelsToOutput(null);
     }
 
-
     /** Holder of a unique number. */
     private static int uniqueNumber = 0;
-
 
     /**
      * Makes a new unique signature.
@@ -380,7 +354,6 @@ public class TestLTSVLoader {
         return TestLTSVLoader.class.getName() + "#" + TestLTSVLoader.uniqueNumber;
     }
 
-
     /**
      * Makes a new set of strings.
      */
@@ -388,14 +361,12 @@ public class TestLTSVLoader {
         return new HashSet<String>(Arrays.asList(strings));
     }
 
-
     /**
      * Checks that the response of pushProjection() is as expected.
      */
     private void checkResponse(RequiredFieldResponse response, boolean expected) {
         assertThat(response.getRequiredFieldResponse(), is(expected));
     }
-
 
     /**
      * Checks that the set of labels to output, which is set by pushProjection();
@@ -406,14 +377,12 @@ public class TestLTSVLoader {
         assertThat(actualLabelsToOutput, is(expectedLabelsToOutput));
     }
 
-
     /**
      * Returns a new field list specifier.
      */
     private RequiredFieldList fieldList(RequiredField ... fields) {
         return new RequiredFieldList(Arrays.asList(fields));
     }
-
 
     /**
      * Returns a new specifier of a map field which consists of the given subfield keys.
@@ -429,7 +398,6 @@ public class TestLTSVLoader {
         return new RequiredField(null, 0, subfields, DataType.MAP);
     }
 
-
     /**
      * Returns the set of lables to output, which is set by pushProjection().
      */
@@ -441,9 +409,7 @@ public class TestLTSVLoader {
         return labelsToOutput;
     }
 
-
     // Tests LTSVLoader.getInputFormat() {{{1
-
 
     /**
      * PigTextInputFormat is used for *.txt.
@@ -461,7 +427,6 @@ public class TestLTSVLoader {
         assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
     }
 
-
     /**
      * PigTextInputFormat is used for a directory.
      */
@@ -477,7 +442,6 @@ public class TestLTSVLoader {
         InputFormat inputFormat = this.loader.getInputFormat();
         assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
     }
-
 
     /**
      * PigTextInputFormat is used for *.gz.
@@ -495,7 +459,6 @@ public class TestLTSVLoader {
         assertThat(inputFormat, instanceOf(PigTextInputFormat.class));
     }
 
-
     /**
      * Bzip2TextInputFormat is used for *.bz.
      */
@@ -511,7 +474,6 @@ public class TestLTSVLoader {
         InputFormat inputFormat = this.loader.getInputFormat();
         assertThat(inputFormat, instanceOf(Bzip2TextInputFormat.class));
     }
-
 
     /**
      * Bzip2TextInputFormat is used for *.bz2.
@@ -529,7 +491,6 @@ public class TestLTSVLoader {
         assertThat(inputFormat, instanceOf(Bzip2TextInputFormat.class));
     }
 
-
     /**
      * Creates a local directory.
      */
@@ -542,10 +503,7 @@ public class TestLTSVLoader {
         }
     }
 
-
     // }}}
-
-
 }
 
 // vim: et sw=4 sts=4 fdm=marker

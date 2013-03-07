@@ -210,31 +210,24 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  */
 public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadMetadata {
 
-
     /** Logger of this class. */
     private static final Log LOG = LogFactory.getLog(LTSVLoader.class);
-
 
     /** Emitter of tuples */
     private final TupleEmitter tupleEmitter;
 
-
     /** Length of "\t" in UTF-8. */
     private static int TAB_LENGTH = 1;
-
 
     /** Length of ":" in UTF-8. */
     private static int COLON_LENGTH = 1;
 
-
     /** Factory of tuples. */
     private final TupleFactory tupleFactory = TupleFactory.getInstance();
-
 
     /** Schema of the output of the loader, which is (:map[]). */
     private static final ResourceSchema MAP_SCHEMA
         = new ResourceSchema(new Schema(new Schema.FieldSchema(null, DataType.MAP)));
-
 
     /**
      * An error code of an input error.
@@ -242,30 +235,24 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private static final int INPUT_ERROR_CODE = 6018;
 
-
     /**
      * An error message of an input error.
      * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
      */
     private static final String INPUT_ERROR_MESSAGE = "Error while reading input";
 
-
     /** Underlying record reader of a text file. */
     @SuppressWarnings("rawtypes")
     private RecordReader reader = null;
 
-
     /** Sequence number of the next log message, which starts from 0. */
     private int warnLogSeqNum = 0;
-
 
     /** Max count of warning logs which will be output to the task log. */
     private static final int MAX_WARN_LOG_COUNT = 100;
 
-
     /** Key of a property which contains Set[String] of labels to output. */
     private static final String LABELS_TO_OUTPUT = "LABELS_TO_OUTPUT";
-
 
     /**
      * An error code of an internal error.
@@ -273,14 +260,11 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private static final int INTERNAL_ERROR_CODE = 2998;
 
-
     /** Location of input files. */
     private String loadLocation;
 
-
     /** Signature of the UDF invocation, used to get UDFContext. */
     private String signature;
-
 
     /**
      * Constructs a loader which extracts a tuple including a single map
@@ -289,7 +273,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public LTSVLoader() {
         this.tupleEmitter = new MapTupleEmitter();
     }
-
 
     /**
      * Constructs a loader which extracts a tuple including specified fields
@@ -304,7 +287,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public LTSVLoader(String schemaString) throws IOException {
         this.tupleEmitter = new FieldsTupleEmitter(schemaString);
     }
-
 
     /**
      * Reads an LTSV line and returns a tuple,
@@ -340,7 +322,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         return this.tupleEmitter.emitTuple();
     }
 
-
     /**
      * Reads a column to the tuple emitter.
      */
@@ -361,14 +342,12 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         this.tupleEmitter.addColumn(label, bytes, startOfValue, end);
     }
 
-
     /**
      * Constructs a tuple from columns and emits it.
      *
      * This interface is used to switch the output type between a map and fields.
      */
     private interface TupleEmitter {
-
 
         /**
          * Adds a value from bytes[startOfValue, endOfValue), corresponding to the label,
@@ -389,18 +368,15 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
             throws IOException;
 
-
         /**
          * Emits a tuple and reinitialize the state of the emitter.
          */
         Tuple emitTuple();
 
-
         /**
          * Returns the schema of tuples.
          */
         ResourceSchema getSchema();
-
 
         /**
          * Notifies required fields in the script.
@@ -409,20 +385,15 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
          */
         RequiredFieldResponse pushProjection(RequiredFieldList requiredFieldList)
             throws FrontendException;
-
-
     }
-
 
     /**
      * Reads columns and emits a tuple with a single map field (:map[]).
      */
     private class MapTupleEmitter implements TupleEmitter {
 
-
         /** Contents of the single map field. */
         private Map<String, Object> map = new HashMap<String, Object>();
-
 
         @Override
         public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
@@ -433,14 +404,12 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             }
         }
 
-
         @Override
         public Tuple emitTuple() {
             Tuple tuple = tupleFactory.newTuple(map);
             this.map = new HashMap<String, Object>();
             return tuple;
         }
-
 
         /**
          * Returns {@code true} if the column should be output.
@@ -450,17 +419,14 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             return outputsEveryColumn || labelsToOutput().contains(label);
         }
 
-
         /** True if {@link labelsToOutput} is initialized. */
         private boolean isProjectionInitialized;
-
 
         /**
          * Labels of columns to output, or {@code null} if all columns should be output.
          * This field should be accessed from {@link #labelsToOutput}.
          */
         private Set<String> labelsToOutput;
-
 
         /**
          * Returns labels of columns to output,
@@ -477,12 +443,10 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             return this.labelsToOutput;
         }
 
-
         @Override
         public ResourceSchema getSchema() {
             return MAP_SCHEMA;
         }
-
 
         @Override
         public RequiredFieldResponse
@@ -522,10 +486,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             LOG.debug("Labels to output: " + labels);
             return new RequiredFieldResponse(true);
         }
-
-
     }
-
 
     /**
      * Reads columns and emits a tuple with fields specified
@@ -533,22 +494,17 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private class FieldsTupleEmitter implements TupleEmitter {
 
-
         /** Schema of tuples. */
         private final ResourceSchema schema;
-
 
         /** Tuple to emit. */
         private Tuple tuple;
 
-
         /** Caster of values. */
         private final LoadCaster loadCaster = getLoadCaster();
 
-
         /** Mapping from labels to indexes in a tuple. */
         private final Map<String, Integer> labelToIndex = new HashMap<String, Integer>();
-
 
         /**
          * Constructs an emitter with the schema.
@@ -561,7 +517,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             }
             this.tuple = tupleFactory.newTuple(this.schema.getFields().length);
         }
-
 
         @Override
         public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
@@ -579,7 +534,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             this.tuple.set(index, value);
         }
 
-
         @Override
         public Tuple emitTuple() {
             Tuple resultTuple = this.tuple;
@@ -587,22 +541,17 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             return resultTuple;
         }
 
-
         @Override
         public ResourceSchema getSchema() {
             return schema;
         }
-
 
         @Override
         public RequiredFieldResponse
         pushProjection(RequiredFieldList requiredFieldList) {
             return new RequiredFieldResponse(false);
         }
-
-
     }
-
 
     /**
      * Returns the index of the first target in bytes[start, end),
@@ -617,7 +566,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         return end;
     }
 
-
     /** Outputs a warning for a malformed column. */
     private void warnMalformedColumn(String column) {
         String message = String.format("MalformedColumn: Column \"%s\" does not contain \":\".", column);
@@ -629,7 +577,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             ++ this.warnLogSeqNum;
         }
     }
-
 
     /**
      * Reads a line from the block,
@@ -648,7 +595,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         }
     }
 
-
     /**
      * Saves the RecordReader.
      *
@@ -664,7 +610,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     prepareToRead(@SuppressWarnings("rawtypes") RecordReader reader, PigSplit split) {
         this.reader = reader;
     }
-
 
     /**
      * Extracts information about which labels are required in the script.
@@ -685,7 +630,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         return this.tupleEmitter.pushProjection(requiredFieldList);
     }
 
-
     /**
      * <p>This UDF supports
      * {@linkplain org.apache.pig.LoadPushDown.OperatorSet#PROJECTION projection push-down}.</p>
@@ -698,7 +642,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public List<OperatorSet> getFeatures() {
         return Collections.singletonList(OperatorSet.PROJECTION);
     }
-
 
     /**
      * Configures the underlying input format
@@ -719,7 +662,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         FileInputFormat.setInputPaths(job, location);
     }
 
-
     /**
      * Makes an instance of an input format from which LTSV lines are read.
      *
@@ -738,7 +680,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         }
     }
 
-
     /**
      * Saves the signature of the current invocation of the UDF.
      *
@@ -750,7 +691,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         this.signature = signature;
     }
 
-
     /**
      * Returns the properties related with the current invocation of the UDF.
      */
@@ -759,9 +699,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
                 getClass(), new String[] { this.signature });
     }
 
-
     // Methods for LoadMetadata
-
 
     /**
      * Does nothing,
@@ -773,7 +711,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     @Override
     public void setPartitionFilter(Expression partitionFilter) {
     }
-
 
     /**
      * Returns {@code null},
@@ -793,7 +730,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         return null;
     }
 
-
     /**
      * Returns {@code null}, because no statistics are available.
      *
@@ -811,7 +747,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         return null;
     }
 
-
     /**
      * Returns the schema of the output of the loader.
      *
@@ -828,8 +763,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     public ResourceSchema getSchema(String location, Job job) {
         return this.tupleEmitter.getSchema();
     }
-
-
 }
 
 // vim: et sw=4 sts=4
