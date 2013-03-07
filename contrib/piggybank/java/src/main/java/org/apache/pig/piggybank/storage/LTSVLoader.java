@@ -343,6 +343,48 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     }
 
     /**
+     * Returns the index of the first target in bytes[start, end),
+     * or the index of the end.
+     */
+    private static int findUntil(byte target, byte[] bytes, int start, int end) {
+        for (int index = start; index < end; ++ index) {
+            if (bytes[index] == target) {
+                return index;
+            }
+        }
+        return end;
+    }
+
+    /** Outputs a warning for a malformed column. */
+    private void warnMalformedColumn(String column) {
+        String message = String.format("MalformedColumn: Column \"%s\" does not contain \":\".", column);
+        warn(message, PigWarning.UDF_WARNING_8);
+
+        // Output at most MAX_WARN_LOG_COUNT warning messages.
+        if (this.warnLogSeqNum < MAX_WARN_LOG_COUNT) {
+            LOG.warn(message);
+            ++ this.warnLogSeqNum;
+        }
+    }
+
+    /**
+     * Reads a line from the block,
+     * or {@code null} if the loader reaches the end of the block.
+     */
+    private Text readLine() throws IOException {
+        try {
+            if (! this.reader.nextKeyValue()) {
+                return null;
+            }
+
+            return (Text) this.reader.getCurrentValue();
+        } catch (InterruptedException exception) {
+            throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE,
+                    PigException.REMOTE_ENVIRONMENT, exception);
+        }
+    }
+
+    /**
      * Constructs a tuple from columns and emits it.
      *
      * This interface is used to switch the output type between a map and fields.
@@ -550,48 +592,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         public RequiredFieldResponse
         pushProjection(RequiredFieldList requiredFieldList) {
             return new RequiredFieldResponse(false);
-        }
-    }
-
-    /**
-     * Returns the index of the first target in bytes[start, end),
-     * or the index of the end.
-     */
-    private static int findUntil(byte target, byte[] bytes, int start, int end) {
-        for (int index = start; index < end; ++ index) {
-            if (bytes[index] == target) {
-                return index;
-            }
-        }
-        return end;
-    }
-
-    /** Outputs a warning for a malformed column. */
-    private void warnMalformedColumn(String column) {
-        String message = String.format("MalformedColumn: Column \"%s\" does not contain \":\".", column);
-        warn(message, PigWarning.UDF_WARNING_8);
-
-        // Output at most MAX_WARN_LOG_COUNT warning messages.
-        if (this.warnLogSeqNum < MAX_WARN_LOG_COUNT) {
-            LOG.warn(message);
-            ++ this.warnLogSeqNum;
-        }
-    }
-
-    /**
-     * Reads a line from the block,
-     * or {@code null} if the loader reaches the end of the block.
-     */
-    private Text readLine() throws IOException {
-        try {
-            if (! this.reader.nextKeyValue()) {
-                return null;
-            }
-
-            return (Text) this.reader.getCurrentValue();
-        } catch (InterruptedException exception) {
-            throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE,
-                    PigException.REMOTE_ENVIRONMENT, exception);
         }
     }
 
