@@ -160,6 +160,9 @@ public class TestLTSVLoader {
         checkNoMoreTuple(it);
     }
 
+    /**
+     * Extracts subset of fields whoes types are same and do projection.
+     */
     @Test
     public void test_extract_subset_of_fields_with_same_type_and_do_projection() throws Exception {
         String inputFileName
@@ -181,6 +184,9 @@ public class TestLTSVLoader {
         checkNoMoreTuple(it);
     }
 
+    /**
+     * Extracts subset of fields whoes types differ and do projection.
+     */
     @Test
     public void test_extract_subset_of_fields_with_different_types_and_do_projection() throws Exception {
         String inputFileName
