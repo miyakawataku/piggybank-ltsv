@@ -161,8 +161,9 @@ public class TestLTSVLoader {
     }
 
     @Test
-    public void test_extract_subset_of_fields_and_do_projection() throws Exception {
-        String inputFileName = "TestLTSVLoader-test_extract_subset_of_fields_and_do_projection.ltsv";
+    public void test_extract_subset_of_fields_with_same_type_and_do_projection() throws Exception {
+        String inputFileName
+            = "TestLTSVLoader-test_extract_subset_of_fields_with_same_type_and_do_projection.ltsv";
         Util.createLocalInputFile(inputFileName, new String[] {
             "host:host1.example.org\treq:GET /index.html\tua:Opera/9.80",
             "host:host1.example.org\treq:GET /favicon.ico\tua:Opera/9.80",
@@ -177,6 +178,25 @@ public class TestLTSVLoader {
         checkTuple(it.next(), "Opera/9.80");
         checkTuple(it.next(), "Opera/9.80");
         checkTuple(it.next(), "Mozilla/5.0");
+        checkNoMoreTuple(it);
+    }
+
+    @Test
+    public void test_extract_subset_of_fields_with_different_types_and_do_projection() throws Exception {
+        String inputFileName
+            = "TestLTSVLoader-test_extract_subset_of_fields_with_different_types_and_do_projection.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "id:001\tname:John",
+            "id:002\tname:Paul"
+        });
+        pigServer.registerQuery(String.format("beatle = LOAD '%s'"
+                    + "USING org.apache.pig.piggybank.storage.LTSVLoader("
+                    + "    'id:int, name:chararray');"
+                    , inputFileName));
+        pigServer.registerQuery("name = FOREACH beatle GENERATE name;");
+        Iterator<Tuple> it = pigServer.openIterator("name");
+        checkTuple(it.next(), "John");
+        checkTuple(it.next(), "Paul");
         checkNoMoreTuple(it);
     }
 
@@ -257,7 +277,7 @@ public class TestLTSVLoader {
      * Map keys given to pushProjection() are set as labels to be output.
      */
     @Test
-    public void test_map_keys_are_projected() throws Exception {
+    public void test_map_projection_specified_map_keys_are_projected() throws Exception {
         RequiredFieldList singletonMapFieldList = fieldList(mapField("host", "ua", "referer"));
         RequiredFieldResponse response = this.loader.pushProjection(singletonMapFieldList);
         checkResponse(response, true);
@@ -268,7 +288,7 @@ public class TestLTSVLoader {
      * No projection is performed if the only field does not contain subfields.
      */
     @Test
-    public void test_no_projection_performed_when_subfields_not_given() throws Exception {
+    public void test_map_projection_no_projection_performed_when_subfields_not_given() throws Exception {
         RequiredField mapField = new RequiredField("map", 0, null, DataType.MAP);
         RequiredFieldList withoutSubfields = fieldList(mapField);
         RequiredFieldResponse response = this.loader.pushProjection(withoutSubfields);
@@ -280,7 +300,7 @@ public class TestLTSVLoader {
      * FrontendException is thrown when the index of the only field is not zero.
      */
     @Test
-    public void test_error_thrown_when_index_of_field_is_nonzero() {
+    public void test_map_projection_error_thrown_when_index_of_field_is_nonzero() {
         RequiredField nonZeroIndexField = new RequiredField("map", 1, null, DataType.MAP);
         RequiredFieldList fieldListWithNonZeroIndex = fieldList(nonZeroIndexField);
         try {
@@ -295,7 +315,7 @@ public class TestLTSVLoader {
      * No projection is performed if no field is specified.
      */
     @Test
-    public void test_no_projection_performed_if_no_field_is_specified() throws Exception {
+    public void test_map_projection_no_projection_performed_if_no_field_is_specified() throws Exception {
         RequiredFieldList emptyFieldList = fieldList();
         RequiredFieldResponse response = this.loader.pushProjection(emptyFieldList);
         checkResponse(response, false);
@@ -306,7 +326,7 @@ public class TestLTSVLoader {
      * FrontendException is thrown when multiple fields are specified.
      */
     @Test
-    public void test_no_error_thrown_when_multiple_fields_specified() {
+    public void test_map_projection_error_thrown_when_multiple_fields_specified() {
         RequiredField field0 = new RequiredField("map0", 0, null, DataType.MAP);
         RequiredField field1 = new RequiredField("map1", 1, null, DataType.MAP);
         RequiredFieldList multipleElementsFieldList = fieldList(field0, field1);
@@ -319,10 +339,11 @@ public class TestLTSVLoader {
     }
 
     /**
-     * No projection is performed if projection information is not given.
+     * No projection is performed if projection information is not given
+     * for MapTupleEmitter#pushProjection.
      */
     @Test
-    public void test_no_projection_performed_when_fields_not_given() throws Exception {
+    public void test_map_projection_no_projection_performed_when_fields_not_given() throws Exception {
         RequiredFieldList emptyFieldList = new RequiredFieldList(null);
         RequiredFieldResponse response = this.loader.pushProjection(emptyFieldList);
         checkResponse(response, false);
@@ -330,17 +351,31 @@ public class TestLTSVLoader {
     }
 
     /**
-     * No projection is performed if the loader is constructed with a schema.
+     * Fields specified by the argument of FieldsTupleEmitter#pushProjection() are set to be output.
      */
     @Test
-    public void test_no_projection_performed_when_schema_are_specified_for_constructor() throws Exception {
+    public void test_field_projection_specified_fields_are_projected() throws Exception {
         LTSVLoader fieldsLoader = new LTSVLoader("host:chararray, ua:chararray");
         fieldsLoader.setUDFContextSignature(this.signature);
         RequiredField hostField = new RequiredField("host", 0, null, DataType.CHARARRAY);
         RequiredFieldList fieldList = fieldList(hostField);
         RequiredFieldResponse response = fieldsLoader.pushProjection(fieldList);
+        checkResponse(response, true);
+        checkIndexesToOutput(newSet(0));
+    }
+
+    /**
+     * No projection is performed if projection information is not given
+     * for FieldsTupleEmitter#pushProjection.
+     */
+    @Test
+    public void test_field_projection_no_projection_performed_when_fields_not_given() throws Exception {
+        LTSVLoader fieldsLoader = new LTSVLoader("host:chararray, ua:chararray");
+        fieldsLoader.setUDFContextSignature(this.signature);
+        RequiredFieldList emptyFieldList = new RequiredFieldList(null);
+        RequiredFieldResponse response = fieldsLoader.pushProjection(emptyFieldList);
         checkResponse(response, false);
-        checkLabelsToOutput(null);
+        checkIndexesToOutput(null);
     }
 
     /** Holder of a unique number. */
@@ -355,10 +390,10 @@ public class TestLTSVLoader {
     }
 
     /**
-     * Makes a new set of strings.
+     * Makes a new set of elements.
      */
-    private Set<String> newSet(String ... strings) {
-        return new HashSet<String>(Arrays.asList(strings));
+    private <T> Set<T> newSet(T ... elements) {
+        return new HashSet<T>(Arrays.asList(elements));
     }
 
     /**
@@ -375,6 +410,11 @@ public class TestLTSVLoader {
     private void checkLabelsToOutput(Set<String> expectedLabelsToOutput) {
         Set<String> actualLabelsToOutput = getLabelsToOutput();
         assertThat(actualLabelsToOutput, is(expectedLabelsToOutput));
+    }
+
+    private void checkIndexesToOutput(Set<Integer> expectedIndexesToOutput) {
+        Set<Integer> actualIndexesToOutput = getIndexesToOutput();
+        assertThat(actualIndexesToOutput, is(expectedIndexesToOutput));
     }
 
     /**
@@ -402,11 +442,20 @@ public class TestLTSVLoader {
      * Returns the set of lables to output, which is set by pushProjection().
      */
     private Set<String> getLabelsToOutput() {
-        UDFContext context = UDFContext.getUDFContext();
-        Properties props = context.getUDFProperties(LTSVLoader.class,  new String[] { this.signature });
         @SuppressWarnings("unchecked")
-        Set<String> labelsToOutput = (Set<String>) props.get("LABELS_TO_OUTPUT");
+        Set<String> labelsToOutput = (Set<String>) getProperties().get("LABELS_TO_OUTPUT");
         return labelsToOutput;
+    }
+
+    private Set<Integer> getIndexesToOutput() {
+        @SuppressWarnings("unchecked")
+        Set<Integer> indexesToOutput = (Set<Integer>) getProperties().get("INDEXES_TO_OUTPUT_IN_SCHEMA");
+        return indexesToOutput;
+    }
+
+    private Properties getProperties() {
+        UDFContext context = UDFContext.getUDFContext();
+        return context.getUDFProperties(LTSVLoader.class,  new String[] { this.signature });
     }
 
     // Tests LTSVLoader.getInputFormat() {{{1

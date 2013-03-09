@@ -21,6 +21,7 @@ package org.apache.pig.piggybank.storage;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
@@ -36,6 +37,7 @@ import org.apache.pig.LoadCaster;
 import org.apache.pig.LoadPushDown;
 import org.apache.pig.ResourceStatistics;
 import org.apache.pig.ResourceSchema;
+import org.apache.pig.ResourceSchema.ResourceFieldSchema;
 import org.apache.pig.PigWarning;
 import org.apache.pig.PigException;
 import org.apache.pig.LoadMetadata;
@@ -254,6 +256,9 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     /** Key of a property which contains Set[String] of labels to output. */
     private static final String LABELS_TO_OUTPUT = "LABELS_TO_OUTPUT";
 
+    /** Key of a property which contains Set[Integer] of indexes of fields to output in a schema. */
+    private static final String INDEXES_TO_OUTPUT_IN_SCHEMA = "INDEXES_TO_OUTPUT_IN_SCHEMA";
+
     /**
      * An error code of an internal error.
      * See https://cwiki.apache.org/confluence/display/PIG/PigErrorHandlingFunctionalSpecification.
@@ -376,7 +381,6 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
             if (! this.reader.nextKeyValue()) {
                 return null;
             }
-
             return (Text) this.reader.getCurrentValue();
         } catch (InterruptedException exception) {
             throw new ExecException(INPUT_ERROR_MESSAGE, INPUT_ERROR_CODE,
@@ -536,6 +540,8 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private class FieldsTupleEmitter implements TupleEmitter {
 
+        // TODO note about two different types of indexes.
+
         /** Schema of tuples. */
         private final ResourceSchema schema;
 
@@ -546,7 +552,10 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         private final LoadCaster loadCaster = getLoadCaster();
 
         /** Mapping from labels to indexes in a tuple. */
-        private final Map<String, Integer> labelToIndex = new HashMap<String, Integer>();
+        private Map<String, Integer> labelToIndexInTuple;
+
+        /** Schemas of fields in a tuple. */
+        private List<ResourceFieldSchema> fieldSchemasInTuple;
 
         /** Set of labels which have occurred and been skipped. */
         private final Set<String> skippedLabels = new HashSet<String>();
@@ -557,27 +566,52 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         private FieldsTupleEmitter(String schemaString) throws IOException {
             Schema rawSchema = Utils.getSchemaFromString(schemaString);
             this.schema = new ResourceSchema(rawSchema);
-            for (int index = 0; index < schema.getFields().length; ++ index) {
-                this.labelToIndex.put(this.schema.getFields()[index].getName(), index);
-            }
+            // FIXME exact size of tuples is fieldSchemasInTuple.size(), but not initialized yet.
             this.tuple = tupleFactory.newTuple(this.schema.getFields().length);
         }
 
         @Override
         public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
         throws IOException {
-            if (! this.labelToIndex.containsKey(label)) {
+            initOrderOfFieldsInTuple();
+
+            if (! this.labelToIndexInTuple.containsKey(label)) {
                 logSkippedLabelAtFirstOccurrence(label);
                 return;
             }
 
-            int index = this.labelToIndex.get(label);
-            ResourceSchema.ResourceFieldSchema fieldSchema = this.schema.getFields()[index];
+            int indexInTuple = this.labelToIndexInTuple.get(label);
+            ResourceFieldSchema fieldSchema = this.fieldSchemasInTuple.get(indexInTuple);
             int valueLength = endOfValue - startOfValue;
             byte[] valueBytes = new byte[valueLength];
             System.arraycopy(bytes, startOfValue, valueBytes, 0, valueLength);
             Object value = CastUtils.convertToType(this.loadCaster, valueBytes, fieldSchema, fieldSchema.getType());
-            this.tuple.set(index, value);
+            this.tuple.set(indexInTuple, value);
+        }
+
+
+        /**
+         * Initializes {@link labelsToOutput} and {@link fieldSchemasInTuple} if required.
+         */
+        private void initOrderOfFieldsInTuple() {
+            if (this.labelToIndexInTuple != null && this.fieldSchemasInTuple != null) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Set<Integer> indexesToOutputInSchema = (Set<Integer>) getProperties().get(INDEXES_TO_OUTPUT_IN_SCHEMA);
+            Map<String, Integer> labelToIndexInTuple = new HashMap<String, Integer>();
+            List<ResourceFieldSchema> fieldSchemasInTuple = new ArrayList<ResourceFieldSchema>();
+            for (int indexInSchema = 0; indexInSchema < this.schema.getFields().length; ++ indexInSchema) {
+                if (indexesToOutputInSchema == null || indexesToOutputInSchema.contains(indexInSchema)) {
+                    ResourceFieldSchema fieldSchema = this.schema.getFields()[indexInSchema];
+                    int indexInTuple = fieldSchemasInTuple.size();
+                    labelToIndexInTuple.put(fieldSchema.getName(), indexInTuple);
+                    fieldSchemasInTuple.add(fieldSchema);
+                }
+            }
+            LOG.debug("Label -> Index: " + labelToIndexInTuple);
+            this.labelToIndexInTuple = labelToIndexInTuple;
+            this.fieldSchemasInTuple = fieldSchemasInTuple;
         }
 
         /**
@@ -593,19 +627,32 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         @Override
         public Tuple emitTuple() {
             Tuple resultTuple = this.tuple;
-            this.tuple = tupleFactory.newTuple(this.schema.getFields().length);
+            this.tuple = tupleFactory.newTuple(this.labelToIndexInTuple.size());
             return resultTuple;
         }
 
         @Override
         public ResourceSchema getSchema() {
-            return schema;
+            return this.schema;
         }
 
         @Override
         public RequiredFieldResponse
         pushProjection(RequiredFieldList requiredFieldList) {
-            return new RequiredFieldResponse(false);
+            List<RequiredField> fields = requiredFieldList.getFields();
+            if (fields == null) {
+                LOG.debug("No fields specified as required.");
+                return new RequiredFieldResponse(false);
+            }
+
+            Set<Integer> indexesToOutputInSchema = new HashSet<Integer>();
+            for (RequiredField field : fields) {
+                indexesToOutputInSchema.add(field.getIndex());
+            }
+
+            getProperties().put(INDEXES_TO_OUTPUT_IN_SCHEMA, indexesToOutputInSchema);
+            LOG.debug("Indexes of fields to output in the schema: " + indexesToOutputInSchema);
+            return new RequiredFieldResponse(true);
         }
     }
 
