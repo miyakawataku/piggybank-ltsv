@@ -558,7 +558,20 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      */
     private class FieldsTupleEmitter implements TupleEmitter {
 
-        // TODO note about two different types of indexes.
+        /*
+         * Note that
+         * indexes in the input schema (indexInSchema)
+         * and indexes in output tuples (indexInTuple)
+         * may differ when the loader performs projection.
+         *
+         * For example:
+         *
+         * - At the input schema in LTSVLoader('id, name, salary'), the indexes are
+         *   id=>0, name=>1, salary=>2.
+         *
+         * - If "name" and "salary" fields are projected, the indexes in output tuples are
+         *   name=>0, salary=>1.
+         */
 
         /** Schema of tuples. */
         private final ResourceSchema schema;
