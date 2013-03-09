@@ -316,7 +316,9 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         byte[] lineBytes = line.getBytes();
         int lineLength = line.getLength();
 
-        // Reads an map entry from each column.
+        this.tupleEmitter.startTuple();
+
+        // Reads columns.
         int startOfColumn = 0;
         while (startOfColumn <= lineLength) {
             int endOfColumn = findUntil((byte) '\t', lineBytes, startOfColumn, lineLength);
@@ -344,7 +346,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
         String label = Text.decode(bytes, start, colon - start);
         int startOfValue = colon + COLON_LENGTH;
-        this.tupleEmitter.addColumn(label, bytes, startOfValue, end);
+        this.tupleEmitter.addColumnToTuple(label, bytes, startOfValue, end);
     }
 
     /**
@@ -392,8 +394,21 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
      * Constructs a tuple from columns and emits it.
      *
      * This interface is used to switch the output type between a map and fields.
+     *
+     * For each row, these methods are called.
+     *
+     * <ol>
+     *   <li>startTuple</li>
+     *   <li>addColumnToTuple * the number of tuples</li>
+     *   <li>emitTuple</li>
+     * </ol>
      */
     private interface TupleEmitter {
+
+        /**
+         * Notifies the start of a tuple.
+         */
+        void startTuple();
 
         /**
          * Adds a value from bytes[startOfValue, endOfValue), corresponding to the label,
@@ -411,11 +426,11 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
          * @param endOfValue
          *     Index a the end of the value (exclusive).
          */
-        void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
+        void addColumnToTuple(String label, byte[] bytes, int startOfValue, int endOfValue)
             throws IOException;
 
         /**
-         * Emits a tuple and reinitialize the state of the emitter.
+         * Emits a tuple.
          */
         Tuple emitTuple();
 
@@ -439,10 +454,15 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
     private class MapTupleEmitter implements TupleEmitter {
 
         /** Contents of the single map field. */
-        private Map<String, Object> map = new HashMap<String, Object>();
+        private Map<String, Object> map;
 
         @Override
-        public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
+        public void startTuple() {
+            this.map = new HashMap<String, Object>();
+        }
+
+        @Override
+        public void addColumnToTuple(String label, byte[] bytes, int startOfValue, int endOfValue)
         throws IOException {
             if (shouldOutput(label)) {
                 DataByteArray value = new DataByteArray(bytes, startOfValue, endOfValue);
@@ -452,9 +472,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
         @Override
         public Tuple emitTuple() {
-            Tuple tuple = tupleFactory.newTuple(map);
-            this.map = new HashMap<String, Object>();
-            return tuple;
+            return tupleFactory.newTuple(map);
         }
 
         /**
@@ -566,15 +584,17 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
         private FieldsTupleEmitter(String schemaString) throws IOException {
             Schema rawSchema = Utils.getSchemaFromString(schemaString);
             this.schema = new ResourceSchema(rawSchema);
-            // FIXME exact size of tuples is fieldSchemasInTuple.size(), but not initialized yet.
-            this.tuple = tupleFactory.newTuple(this.schema.getFields().length);
         }
 
         @Override
-        public void addColumn(String label, byte[] bytes, int startOfValue, int endOfValue)
-        throws IOException {
+        public void startTuple() {
             initOrderOfFieldsInTuple();
+            this.tuple = tupleFactory.newTuple(this.labelToIndexInTuple.size());
+        }
 
+        @Override
+        public void addColumnToTuple(String label, byte[] bytes, int startOfValue, int endOfValue)
+        throws IOException {
             if (! this.labelToIndexInTuple.containsKey(label)) {
                 logSkippedLabelAtFirstOccurrence(label);
                 return;
@@ -626,9 +646,7 @@ public class LTSVLoader extends FileInputLoadFunc implements LoadPushDown, LoadM
 
         @Override
         public Tuple emitTuple() {
-            Tuple resultTuple = this.tuple;
-            this.tuple = tupleFactory.newTuple(this.labelToIndexInTuple.size());
-            return resultTuple;
+            return this.tuple;
         }
 
         @Override
