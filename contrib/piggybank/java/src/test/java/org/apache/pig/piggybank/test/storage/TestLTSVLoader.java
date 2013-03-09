@@ -207,6 +207,30 @@ public class TestLTSVLoader {
     }
 
     /**
+     * Extracts fields using different names in AS clause.
+     * Names in AS clause do not affect the loader.
+     */
+    @Test
+    public void test_extract_fields_as_different_names() throws Exception {
+        String inputFileName
+            = "TestLTSVLoader-test_extract_fields_as_different_names.ltsv";
+        Util.createLocalInputFile(inputFileName, new String[] {
+            "id:001\tname:John",
+            "id:002\tname:Paul"
+        });
+        pigServer.registerQuery(String.format("beatle = LOAD '%s'"
+                    + "USING org.apache.pig.piggybank.storage.LTSVLoader("
+                    + "    'id:int, name:chararray')"
+                    + "    AS (id_field:int, name_field:chararray);"
+                    , inputFileName));
+        pigServer.registerQuery("name_field = FOREACH beatle GENERATE name_field;");
+        Iterator<Tuple> it = pigServer.openIterator("name_field");
+        checkTuple(it.next(), "John");
+        checkTuple(it.next(), "Paul");
+        checkNoMoreTuple(it);
+    }
+
+    /**
      * Malformed columns are not contained in the output.
      */
     @Test
